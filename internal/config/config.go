@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -16,6 +18,16 @@ type Config struct {
 }
 
 func Load() (Config, error) {
+	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
+	if appEnv == "" {
+		appEnv = "dev"
+	}
+
+	// Progressively load env files, allowing overrides from more specific ones.
+	_ = godotenv.Load(".env." + appEnv + ".local")
+	_ = godotenv.Load(".env." + appEnv)
+	_ = godotenv.Load() // fallback to .env
+
 	cfg := Config{
 		KnowledgeRepoPath:    strings.TrimSpace(os.Getenv("KNOWLEDGE_REPO_PATH")),
 		Port:                 strings.TrimSpace(os.Getenv("DOCS_SERVICE_PORT")),
