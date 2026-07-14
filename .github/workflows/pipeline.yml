@@ -2,38 +2,23 @@ name: docs.svc.plus Pipeline
 
 on:
   pull_request:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/pipeline.yml"
-      - ".github/workflows/build-push-ghcr-image.yml"
-      - "Dockerfile"
-      - "go.mod"
-      - "go.sum"
-      - "README.md"
-      - "cmd/**"
-      - "deploy/single-node/**"
-      - "internal/**"
+    branches: [main]
   push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/pipeline.yml"
-      - ".github/workflows/build-push-ghcr-image.yml"
-      - "Dockerfile"
-      - "go.mod"
-      - "go.sum"
-      - "README.md"
-      - "cmd/**"
-      - "deploy/single-node/**"
-      - "internal/**"
+    branches: ['release/**']
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       target_host:
         description: Ansible host or alias
         required: false
-        default: "jp-xhttp-contabo.svc.plus"
+        default: ""
         type: string
+      deployment_environment:
+        description: Deployment environment
+        required: true
+        default: uat
+        type: choice
+        options: [dev, uat, prod]
       run_apply:
         description: Apply deployment
         required: true
