@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: ['release/**']
+    branches: [main, 'release/**']
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -159,8 +159,10 @@ jobs:
         with:
           images: ${{ steps.service_image.outputs.repo }}
           tags: |
-            type=sha,format=long
+            type=ref,event=tag
+            type=ref,event=branch,enable=${{ startsWith(github.ref, 'refs/heads/release/') }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=long
 
       - name: Resolve service image ref
         id: service_ref
