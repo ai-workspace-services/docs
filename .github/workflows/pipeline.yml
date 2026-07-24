@@ -8,32 +8,12 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
-      target_host:
-        description: Ansible host or alias
-        required: false
-        default: ""
-        type: string
       deployment_environment:
         description: Deployment environment
         required: true
         default: uat
         type: choice
         options: [dev, uat, prod]
-      run_apply:
-        description: Apply deployment
-        required: true
-        default: true
-        type: boolean
-      sync_dns:
-        description: Sync Cloudflare DNS after deploy
-        required: true
-        default: false
-        type: boolean
-      knowledge_repo_path_host:
-        description: Absolute knowledge repo path on the target host
-        required: false
-        default: ""
-        type: string
 
 permissions:
   contents: read
@@ -48,7 +28,6 @@ defaults:
     shell: bash
 
 env:
-  DEFAULT_TARGET_HOST: jp-xhttp-contabo.svc.plus
   DEFAULT_DOCS_CANONICAL_DOMAIN: docs.svc.plus
 
 jobs:
@@ -56,70 +35,32 @@ jobs:
     name: Prep
     runs-on: ubuntu-latest
     outputs:
-      target_host: ${{ steps.flags.outputs.target_host }}
-      run_apply: ${{ steps.flags.outputs.run_apply }}
-      deploy_enabled: ${{ steps.flags.outputs.deploy_enabled }}
       push_image: ${{ steps.flags.outputs.push_image }}
-      sync_dns: ${{ steps.flags.outputs.sync_dns }}
-      knowledge_repo_path_host: ${{ steps.flags.outputs.knowledge_repo_path_host }}
     steps:
       - name: Resolve pipeline flags
         id: flags
         env:
           EVENT_NAME: ${{ github.event_name }}
-          DEFAULT_TARGET_HOST: ${{ env.DEFAULT_TARGET_HOST }}
-          DEFAULT_KNOWLEDGE_REPO_PATH_HOST: ${{ vars.DOCS_KNOWLEDGE_REPO_PATH_HOST }}
-          INPUT_TARGET_HOST: ${{ inputs.target_host }}
-          INPUT_RUN_APPLY: ${{ inputs.run_apply }}
-          INPUT_SYNC_DNS: ${{ inputs.sync_dns }}
-          INPUT_KNOWLEDGE_REPO_PATH_HOST: ${{ inputs.knowledge_repo_path_host }}
         run: |
           set -euo pipefail
 
-          target_host="${INPUT_TARGET_HOST:-}"
-          if [[ -z "${target_host}" ]]; then
-            target_host="${DEFAULT_TARGET_HOST}"
-          fi
-
-          knowledge_repo_path_host="${INPUT_KNOWLEDGE_REPO_PATH_HOST:-}"
-          if [[ -z "${knowledge_repo_path_host}" ]]; then
-            knowledge_repo_path_host="${DEFAULT_KNOWLEDGE_REPO_PATH_HOST:-}"
-          fi
-
           case "${EVENT_NAME}" in
             pull_request)
-              run_apply="false"
-              deploy_enabled="false"
               push_image="false"
-              sync_dns="false"
               ;;
             push)
-              run_apply="true"
-              deploy_enabled="true"
               push_image="true"
-              sync_dns="false"
               ;;
             workflow_dispatch)
-              run_apply="${INPUT_RUN_APPLY:-true}"
-              deploy_enabled="true"
               push_image="true"
-              sync_dns="${INPUT_SYNC_DNS:-false}"
               ;;
             *)
-              run_apply="false"
-              deploy_enabled="false"
               push_image="false"
-              sync_dns="false"
               ;;
           esac
 
           {
-            echo "target_host=${target_host}"
-            echo "run_apply=${run_apply}"
-            echo "deploy_enabled=${deploy_enabled}"
             echo "push_image=${push_image}"
-            echo "sync_dns=${sync_dns}"
-            echo "knowledge_repo_path_host=${knowledge_repo_path_host}"
           } >> "$GITHUB_OUTPUT"
 
   build:
