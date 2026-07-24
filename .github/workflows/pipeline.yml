@@ -28,7 +28,6 @@ defaults:
     shell: bash
 
 env:
-  DEFAULT_TARGET_HOST: jp-xhttp-contabo.svc.plus
   DEFAULT_DOCS_CANONICAL_DOMAIN: docs.svc.plus
 
 jobs:
