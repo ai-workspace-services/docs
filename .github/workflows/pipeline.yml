@@ -70,10 +70,11 @@ jobs:
 
       - name: Fetch Vault Secrets
         if: needs.prep.outputs.push_image == 'true'
-        uses: hashicorp/vault-action@v3.0.0
+        uses: hashicorp/vault-action@v4.0.0
         with:
           url: ${{ vars.VAULT_ADDR }}
           role: github-actions-docs-${{ needs.prep.outputs.deployment_environment }}
+          jwtGithubAudience: vault
           method: jwt
           secrets: |
             kv/data/github-actions/docs GHCR_TOKEN | GHCR_TOKEN
