@@ -72,12 +72,20 @@ jobs:
         if: needs.prep.outputs.push_image == 'true'
         uses: hashicorp/vault-action@v4.0.0
         with:
-          url: ${{ vars.VAULT_ADDR }}
+          # url 原本读 ${{ vars.VAULT_ADDR }}, 而那个仓库变量从未设置 ——
+          # 空值让 vault-action 直接报 "Input required and not supplied: url"。
+          # 依赖一个必须在 GitHub 设置里单独配好的变量, 等于给每个新仓库加一
+          # 道看不见的前置条件; 其余四个业务仓与 platform-ops-toolkit 都是直接
+          # 写死地址。
+          url: https://vault.svc.plus
           role: github-actions-docs-${{ needs.prep.outputs.deployment_environment }}
           jwtGithubAudience: vault
           method: jwt
+          # GHCR 推送凭据统一放在 kv/data/CICD(第 ① 层公共服务 secret, 三个
+          # 环境共读)。kv/data/github-actions/docs 这个路径不存在, 表现为
+          # 403 —— 而 403 与"role 没建"、"绑定不匹配"完全同形, 很容易误判。
           secrets: |
-            kv/data/github-actions/docs GHCR_TOKEN | GHCR_TOKEN
+            kv/data/CICD GHCR_TOKEN | GHCR_TOKEN
 
       - name: Log in to GHCR
         if: needs.prep.outputs.push_image == 'true'
