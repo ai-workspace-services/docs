@@ -69,6 +69,7 @@ jobs:
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
       - name: Fetch Vault Secrets
+        id: vault
         if: needs.prep.outputs.push_image == 'true'
         uses: hashicorp/vault-action@v4.0.0
         with:
@@ -85,6 +86,7 @@ jobs:
           # 环境共读)。kv/data/github-actions/docs 这个路径不存在, 表现为
           # 403 —— 而 403 与"role 没建"、"绑定不匹配"完全同形, 很容易误判。
           secrets: |
+            kv/data/CICD GHCR_USERNAME | GHCR_USERNAME ;
             kv/data/CICD GHCR_TOKEN | GHCR_TOKEN
 
       - name: Log in to GHCR
@@ -92,8 +94,8 @@ jobs:
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
-          username: ${{ vars.GHCR_USERNAME || github.repository_owner }}
-          password: ${{ env.GHCR_TOKEN || github.token }}
+          username: ${{ steps.vault.outputs.GHCR_USERNAME }}
+          password: ${{ steps.vault.outputs.GHCR_TOKEN }}
 
       - name: Resolve service image repository
         id: service_image
@@ -125,4 +127,3 @@ jobs:
           push: ${{ needs.prep.outputs.push_image == 'true' }}
           tags: ${{ steps.service_meta.outputs.tags }}
           labels: ${{ steps.service_meta.outputs.labels }}
-
