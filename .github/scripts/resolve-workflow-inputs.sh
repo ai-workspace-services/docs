@@ -15,7 +15,17 @@ elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
 elif [[ "${GITHUB_REF}" == refs/heads/main ]]; then
   push_image="true"
   deployment_environment="${INPUT_ENV:-uat}"
-elif [[ "${GITHUB_REF}" == refs/tags/daily-build-* ]]; then
+elif [[ "${GITHUB_REF}" == refs/tags/prod-* ]]; then
+  push_image="true"
+  deployment_environment="prod"
+elif [[ "${GITHUB_REF}" == refs/tags/sit-* ]]; then
+  push_image="true"
+  deployment_environment="sit"
+# Operational tags carry an environment prefix, so uat-daily-build-* must be
+# matched unanchored — a bare refs/tags/daily-build-* misses the tags the
+# cross-repo daily snapshot actually creates, and they then fall through to
+# the prod branch below.
+elif [[ "${GITHUB_REF}" == refs/tags/uat-* || "${GITHUB_REF}" == *daily-build-* ]]; then
   push_image="true"
   deployment_environment="uat"
 elif [[ "${GITHUB_REF}" == refs/heads/release/* || "${GITHUB_REF}" == refs/tags/* ]]; then
