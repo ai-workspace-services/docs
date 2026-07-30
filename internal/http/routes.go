@@ -57,7 +57,7 @@ func (a *App) Reload(pull bool) content.ReloadResult {
 		LoadedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	if pull {
-		ok, message, err := gitsync.Pull(a.cfg.KnowledgeRepoPath)
+		ok, message, err := gitsync.Sync(a.cfg.KnowledgeRepoURL, a.cfg.KnowledgeRepoPath)
 		result.Pulled = ok
 		result.Message = message
 		if err != nil {
