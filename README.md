@@ -4,7 +4,8 @@ Go service for Cloud-Neutral documentation delivery and `docs-agent` actions.
 
 ## Environment
 
-- `KNOWLEDGE_REPO_PATH`: local checkout of the `knowledge` repository
+- `KNOWLEDGE_REPO_PATH`: Absolute path to the local git repository (e.g., `/Users/xxx/knowledge`). If the directory is not a git repo but `KNOWLEDGE_REPO_URL` is set, the service will attempt to initialize and sync it from the upstream.
+- `KNOWLEDGE_REPO_URL`: (Optional) Upstream git repository URL to watch and sync from (e.g., `https://github.com/haitaopanhq/knowledge.git`).
 - `DOCS_SERVICE_PORT`: HTTP listen port
 - `INTERNAL_SERVICE_TOKEN`: shared service-to-service auth token
 - `DOCS_RELOAD_INTERVAL`: background reload interval, for example `5m`

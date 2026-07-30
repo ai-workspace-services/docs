@@ -11,6 +11,7 @@ import (
 )
 
 type Config struct {
+	KnowledgeRepoURL     string
 	KnowledgeRepoPath    string
 	Port                 string
 	InternalServiceToken string
@@ -29,6 +30,7 @@ func Load() (Config, error) {
 	_ = godotenv.Load() // fallback to .env
 
 	cfg := Config{
+		KnowledgeRepoURL:     strings.TrimSpace(os.Getenv("KNOWLEDGE_REPO_URL")),
 		KnowledgeRepoPath:    strings.TrimSpace(os.Getenv("KNOWLEDGE_REPO_PATH")),
 		Port:                 strings.TrimSpace(os.Getenv("DOCS_SERVICE_PORT")),
 		InternalServiceToken: strings.TrimSpace(os.Getenv("INTERNAL_SERVICE_TOKEN")),
