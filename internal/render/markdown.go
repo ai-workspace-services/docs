@@ -79,12 +79,16 @@ func ExtractTitle(source string) string {
 }
 
 func ExtractExcerpt(source string) string {
+	imageRe := regexp.MustCompile(`!\[.*?\]\(.*?\)`)
 	for _, block := range strings.Split(source, "\n\n") {
 		trimmed := strings.TrimSpace(block)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		plain := formattingRe.ReplaceAllString(linkRe.ReplaceAllString(trimmed, "$1"), "")
+		
+		// Remove images first so their alt text doesn't end up in the excerpt
+		plain := imageRe.ReplaceAllString(trimmed, "")
+		plain = formattingRe.ReplaceAllString(linkRe.ReplaceAllString(plain, "$1"), "")
 		plain = strings.Join(strings.Fields(plain), " ")
 		if plain != "" {
 			if len(plain) > 220 {
