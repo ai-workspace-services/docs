@@ -39,8 +39,25 @@ jq -n \
 
 printf '%s\n' "${assets_dir}"
 
+retry() {
+  local retries=5
+  local count=0
+  until "$@"; do
+    local exit_code=$?
+    count=$((count + 1))
+    if [ $count -lt $retries ]; then
+      echo "Command '$*' failed with exit code $exit_code. Retrying in $((count * 3)) seconds... (Attempt $count/$retries)" >&2
+      sleep $((count * 3))
+    else
+      echo "Command '$*' failed with exit code $exit_code after $count attempts." >&2
+      return $exit_code
+    fi
+  done
+}
+
 if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
-  gh release view "${release_tag}" >/dev/null 2>&1 || \
-    gh release create "${release_tag}" --title "${GITHUB_REPOSITORY} ${release_tag}" --notes "Automated CI release for ${GITHUB_SHA}."
-  gh release upload "${release_tag}" "${assets_dir}"/* --clobber
+  if ! gh release view "${release_tag}" >/dev/null 2>&1; then
+    retry gh release create "${release_tag}" --title "${GITHUB_REPOSITORY} ${release_tag}" --notes "Automated CI release for ${GITHUB_SHA}."
+  fi
+  retry gh release upload "${release_tag}" "${assets_dir}"/* --clobber
 fi
