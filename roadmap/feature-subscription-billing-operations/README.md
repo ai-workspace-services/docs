@@ -17,8 +17,12 @@
 | [01-plan-catalog.md](./01-plan-catalog.md) | 四档套餐的完整定义、数据模型映射、Stripe 对象映射 |
 | [02-metering-and-entitlements.md](./02-metering-and-entitlements.md) | 三个计费维度、配额周期、欠费与停机策略 |
 | [03-operations-console.md](./03-operations-console.md) | 运营管理台与账单能力 |
-| [05-stripe-catalog-automation.md](./05-stripe-catalog-automation.md) | Product/Price/Webhook 的 IaC 化：声明式配置 + 幂等同步脚本，换 Stripe 账号只需换密钥重跑 |
-| [04-delivery-phases.md](./04-delivery-phases.md) | 分阶段实施与验收 |
+| [04-stripe-catalog-automation.md](./05-stripe-catalog-automation.md) | Product/Price/Webhook 的 IaC 化：声明式配置 + 幂等同步脚本，换 Stripe 账号只需换密钥重跑 |
+| [05-management-console-integration.md](./06-management-console-integration.md) | 落到真实 `/panel/management` 页面：扩展现有用户表、新增账号分类标签（独立于路由用的 `groups`） |
+| [06-existing-user-migration.md](./07-existing-user-migration.md) | 生产环境存量用户的迁移方案：过渡套餐、配额估算、回填脚本、时序要求 |
+| [07-status-and-handoff.md](./08-status-and-handoff.md)** | **当前进度、UAT 实测数据、阻塞项、已踩过的坑——接手前先读这篇** |
+| [08-trial-grants-and-topup-gap.md](./09-trial-grants-and-topup-gap.md) | 发放试用额度接口；以及**充值成功但余额不入账**这个代码缺口 |
+| [09-delivery-phases.md](./04-delivery-phases.md) | 分阶段实施与验收 |
 
 ## 现状盘点（2026-08-05 实测）
 
@@ -53,6 +57,7 @@ Portal 上「套餐 default、配额 0 B、暂无订阅记录」即以上三处 
 3. **Free 档「每周 1 小时高速」的计量口径**（[02](./02-metering-and-entitlements.md#时长维度)）——是连接时长还是有流量的时长？前者需要新的会话计量源。
 4. **预充值的充值入口**（[01](./01-plan-catalog.md#pay-as-you-go)）——Stripe 一次性支付充值到 `current_balance`，还是走 Stripe Customer Balance？
 5. **资源服务卡片的计量源**（[02](./02-metering-and-entitlements.md#资源实例维度)）——目前完全没有这条链路，需要确认由谁上报。
+6. **存量生产用户的迁移规则**（[07](./07-existing-user-migration.md)）——生产已有几十个真实用户从未走过计费流程，文档按「过渡套餐 + 按历史用量估算配额」设计，需要确认这批账号的准确名单与是否需要主动通知。这一步是 S2（[04](./04-delivery-phases.md)）的前置条件，不是可选项。
 
 ## 与既有规划的关系
 
