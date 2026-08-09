@@ -21,6 +21,7 @@
 | [06-management-console-integration.md](./06-management-console-integration.md) | 落到真实 `/panel/management` 页面：扩展现有用户表、新增账号分类标签（独立于路由用的 `groups`） |
 | [07-existing-user-migration.md](./07-existing-user-migration.md) | 生产环境存量用户的迁移方案：过渡套餐、配额估算、回填脚本、时序要求 |
 | **[08-status-and-handoff.md](./08-status-and-handoff.md)** | **当前进度、UAT 实测数据、阻塞项、已踩过的坑——接手前先读这篇** |
+| [09-trial-grants-and-topup-gap.md](./09-trial-grants-and-topup-gap.md) | 发放试用额度接口；以及**充值成功但余额不入账**这个代码缺口 |
 | [04-delivery-phases.md](./04-delivery-phases.md) | 分阶段实施与验收 |
 
 ## 现状盘点（2026-08-05 实测）

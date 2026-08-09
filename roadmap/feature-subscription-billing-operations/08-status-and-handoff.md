@@ -62,6 +62,7 @@ admin@svc.plus              2026-08-08
 | **Vault 策略未授权** | `github-actions-platform-ops-toolkit-uat` 角色可能没有 `kv/data/billing-service` 读权限。已部署但 `docker exec web-saas-accounts printenv STRIPE_SECRET_KEY` 仍为空 | 需要有 Vault 管理权限的人确认/授予 |
 | **Stripe 目录未创建** | 需要 `STRIPE_SECRET_KEY` 跑 `accounts/scripts/stripe-sync-catalog.sh` | 需要有 Stripe 后台权限的人 |
 | **PR 合并** | accounts#55、docs#16 | 本会话中所有 PR 合并均被权限分类器拦截，需人工合并 |
+| **充值不入余额（代码缺口）** | `checkout.session.completed` 的一次性支付分支只写订阅记录、**不动 `current_balance`**。PAYG 用户充值成功后余额仍是 0——该档核心路径是坏的 | 需要写代码，见 [09](./09-trial-grants-and-topup-gap.md#二充值不入余额代码缺口)。不阻塞 Pro 订阅，只阻塞 PAYG |
 
 ⚠️ **Stripe 密钥为空是"优雅降级"而非故障**：accounts 的 stripe 客户端在密钥为空时软性 disabled（`api/stripe.go` 的 `enabled()`），不阻塞部署。密钥到位后自动生效，无需改代码或重新合并任何 PR。
 
@@ -94,6 +95,7 @@ admin@svc.plus              2026-08-08
 3. **PostgreSQL 是账务事实源**，超额不上报 Stripe metered usage（[01](./01-plan-catalog.md#stripe-对象映射)）
 4. **Stripe 价格不可变**。改价必须换新 `lookup_key`，不能原地改（[05](./05-stripe-catalog-automation.md)）
 5. **手动调余额必须写 ledger**，不能直接 UPDATE `current_balance`（[03](./03-operations-console.md#余额调整必须走-ledger)）
+6. **充值入账必须按 `payment_intent` 幂等**。Stripe webhook 会重试，重复入账等于凭空发钱（[09](./09-trial-grants-and-topup-gap.md#幂等是硬要求)）
 
 ## 环境速查
 
