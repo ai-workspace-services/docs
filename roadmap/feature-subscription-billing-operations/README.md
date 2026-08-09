@@ -17,12 +17,12 @@
 | [01-plan-catalog.md](./01-plan-catalog.md) | 四档套餐的完整定义、数据模型映射、Stripe 对象映射 |
 | [02-metering-and-entitlements.md](./02-metering-and-entitlements.md) | 三个计费维度、配额周期、欠费与停机策略 |
 | [03-operations-console.md](./03-operations-console.md) | 运营管理台与账单能力 |
-| [05-stripe-catalog-automation.md](./05-stripe-catalog-automation.md) | Product/Price/Webhook 的 IaC 化：声明式配置 + 幂等同步脚本，换 Stripe 账号只需换密钥重跑 |
-| [06-management-console-integration.md](./06-management-console-integration.md) | 落到真实 `/panel/management` 页面：扩展现有用户表、新增账号分类标签（独立于路由用的 `groups`） |
-| [07-existing-user-migration.md](./07-existing-user-migration.md) | 生产环境存量用户的迁移方案：过渡套餐、配额估算、回填脚本、时序要求 |
-| **[08-status-and-handoff.md](./08-status-and-handoff.md)** | **当前进度、UAT 实测数据、阻塞项、已踩过的坑——接手前先读这篇** |
-| [09-trial-grants-and-topup-gap.md](./09-trial-grants-and-topup-gap.md) | 发放试用额度接口；以及**充值成功但余额不入账**这个代码缺口 |
-| [04-delivery-phases.md](./04-delivery-phases.md) | 分阶段实施与验收 |
+| [04-stripe-catalog-automation.md](./05-stripe-catalog-automation.md) | Product/Price/Webhook 的 IaC 化：声明式配置 + 幂等同步脚本，换 Stripe 账号只需换密钥重跑 |
+| [05-management-console-integration.md](./06-management-console-integration.md) | 落到真实 `/panel/management` 页面：扩展现有用户表、新增账号分类标签（独立于路由用的 `groups`） |
+| [06-existing-user-migration.md](./07-existing-user-migration.md) | 生产环境存量用户的迁移方案：过渡套餐、配额估算、回填脚本、时序要求 |
+| [07-status-and-handoff.md](./08-status-and-handoff.md)** | **当前进度、UAT 实测数据、阻塞项、已踩过的坑——接手前先读这篇** |
+| [08-trial-grants-and-topup-gap.md](./09-trial-grants-and-topup-gap.md) | 发放试用额度接口；以及**充值成功但余额不入账**这个代码缺口 |
+| [09-delivery-phases.md](./04-delivery-phases.md) | 分阶段实施与验收 |
 
 ## 现状盘点（2026-08-05 实测）
 
