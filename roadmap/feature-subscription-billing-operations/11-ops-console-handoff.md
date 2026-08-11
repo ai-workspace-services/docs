@@ -14,18 +14,29 @@ UAT 部署证据：[`platform-ops-toolkit` run #31367412474](https://github.com/
 
 当前判断：
 
-- Portal 已落地 `/panel/ops` Build 2：运营工作台、账号处置台和计费运营总览可以通过独立运营路由访问；侧栏修复已随 [portal PR #172](https://github.com/ai-workspace-services/portal/pull/172) 合入，套餐目录与审计页提交为 `f10360c`，对应待验收的 [portal PR #176](https://github.com/ai-workspace-services/portal/pull/176)。Accounts 套餐写入原因强制校验对应 [accounts PR #66](https://github.com/ai-workspace-services/accounts/pull/66)。
+- Portal 已落地 `/panel/ops` Build 2：运营工作台、账号处置台和计费运营总览可以通过独立运营路由访问；侧栏修复已随 [portal PR #172](https://github.com/ai-workspace-services/portal/pull/172) 合入，套餐目录与审计页已随 [portal PR #176](https://github.com/ai-workspace-services/portal/pull/176) 合入 `main`。Accounts 套餐写入原因强制校验已随 [accounts PR #66](https://github.com/ai-workspace-services/accounts/pull/66) 合入；本交接文档已随 [docs PR #20](https://github.com/ai-workspace-services/docs/pull/20) 合入。
 - 当前实现的访问边界是 `root`（归一化为 `admin`）、`admin`、`operator`；普通用户由页面 guard 和 BFF 双重拦截。MFA 未完成时，运营入口按预期跳转到 `/panel/account?setupMfa=1`。
 - 账号详情所需的后端 P0 数据契约已经具备：账号全景、指派套餐、调整配额、调整余额、发放试用、清欠费、审计流水；前端不再自行拼接数据库字段。账号列表 BFF 当前复用受保护的 `/api/auth/users`，避免调用尚未提供的聚合路径。
 - PAYG 充值入账是独立的发布闸门。候选实现即使已有单元测试，也必须在 UAT 验证「一次支付 → 余额 + ledger → 重复 webhook 不重复入账」后，才算完成。
 - `/prices` 已经读取实时套餐目录，因此套餐上架、下架和 Stripe 价格关联属于真实运营变更，必须走更高等级的权限和审计。
+
+最新交付与验证记录：
+
+| 仓库 | 已合入提交 | 结果 |
+| --- | --- | --- |
+| Portal | `f10360c`，PR #176 | 套餐目录、审计页、BFF、权限门禁已合入 `main` |
+| Accounts | `c14588f`，PR #66 | 套餐 upsert/delete 强制 reason，并记录审计 |
+| Docs | `4ed8673`，PR #20 | 本交接文档已同步最新实现状态 |
+
+本地/CI 验证：Portal `npm run typecheck`、定向 ESLint、权限测试 29 cases 通过；Accounts `go test ./api/...` 通过。Portal 未登录 BFF 冒烟请求返回 401，页面路由可正常返回；这些结果不替代 UAT 真实账号和资金链路验收。
 
 今天的 UAT 只读核对结果：
 
 - `admin@svc.plus` 登录态可以进入 `/panel/ops`、`/panel/ops/accounts`、`/panel/ops/billing/ledger`；UAT 展示 16 个账号、16 个活跃订阅。
 - MRR、欠费、账单例外、资金流和审批队列在数据未闭环时均显示「待同步」或明确空态，没有用 `0` 或推算值冒充真实金额。
 - 账号处置台的「调整余额」弹窗要求填写操作原因；空原因点击确认会被拦截，未发起写请求。
-- UAT 当前部署版本仍把「资源运维」放在用户中心侧栏顶部，尚未包含 PR #172 的底部收纳修复；这不是本地代码验证失败，而是 UAT 尚未部署该 PR 的证据。合入并部署后必须重新验收侧栏顺序。
+- UAT 当前部署版本仍把「资源运维」放在用户中心侧栏顶部，尚未包含已合入 PR #172/#176 的最新 Portal 代码；这不是本地代码验证失败，而是 UAT 尚未部署合入后的版本。部署后必须重新验收侧栏顺序、套餐页和审计页。
+- 最近一次 UAT 登录截图中，`/api/auth/login` 与 `/api/auth/mfa/status` 返回 502；先按 Accounts 上游/MFA 依赖故障排查，不把它误判为运营页面渲染故障。密码输入应使用原始字符串，不要把 Markdown 的 `**` 一并输入。
 - UAT 本次未切换普通用户账号做真实登录验证；普通用户阻断已由 Portal 权限单测覆盖，部署后仍需用专用普通用户账号补做一次 UAT 访问验收。
 
 本地与线上环境必须严格分离：
@@ -38,7 +49,7 @@ UAT 部署证据：[`platform-ops-toolkit` run #31367412474](https://github.com/
 
 ## Overview
 
-面向 **admin / operator** 的独立运营控制台。当前 `/panel/management` 把权限矩阵和首页视频配置放在同一页，已经成为杂物间——本控制台把**运营职责**独立出来，并把那两块按归属拆走。当前 Build 2 已可供 UAT 只读验证；`/panel/management` 的完整拆分仍未完成。
+面向 **admin / operator** 的独立运营控制台。当前 `/panel/management` 把权限矩阵和首页视频配置放在同一页，已经成为杂物间——本控制台把**运营职责**独立出来，并把那两块按归属拆走。Build 2 已合入 `main`，等待 UAT 部署后重新验收；`/panel/management` 的完整拆分仍未完成。
 
 进入路径：侧边栏 `admin` 分组（[portal#167](https://github.com/ai-workspace-services/portal/pull/167) 已取消 `hidden`，admin/operator 及由组继承者可见）。
 
@@ -268,12 +279,12 @@ lg:grid-cols-3
 
 | 能力 | 状态 | 交接说明 |
 | --- | --- | --- |
-| 运营工作台 `/panel/ops` | 已实现，待 UAT 部署最新 PR | 页面壳、权限门禁、运营快捷入口已具备；趋势和用量 TopN 仍是待接入空态。 |
+| 运营工作台 `/panel/ops` | 已合入，待 UAT 部署 | 页面壳、权限门禁、运营快捷入口已具备；趋势和用量 TopN 仍是待接入空态。 |
 | 账号处置台 `/panel/ops/accounts` | 已实现，UAT 可读 | 账号检索、账号详情、套餐/试用/配额/余额/清欠费动作已接入；列表 BFF 复用受保护账号目录。单账号 canonical path 仍需从 query 参数升级为 `/:uuid`。 |
 | 计费运营总览 `/panel/ops/billing/ledger` | 已实现，数据待闭环 | BFF 与页面已接入；UAT 当前显示待同步，不能据此宣称 MRR、ledger 或对账数据已完成。 |
 | 高风险原因与审计 | 后端已保护 | Accounts 写接口强制 `reason` 并记录 before/after；Portal BFF 额外拒绝空原因和超过 500 字的原因。 |
-| 资源运维侧栏调整 | 已实现于 PR #172，UAT 未部署 | 本地代码将 `infra` 分组放入侧栏底部；UAT 当前仍显示在顶部。 |
-| 套餐 CRUD、审计读取、权限矩阵迁移 | 套餐/审计已完成首版，权限矩阵未完成 | `/panel/ops/billing/plans` 与 `/panel/ops/audit` 已接真实页面/BFF，待 PR #176 部署后 UAT 验收；`/panel/ops/system` 仍需迁移权限矩阵和黑名单。 |
+| 资源运维侧栏调整 | 已合入 PR #172，UAT 未部署 | 本地代码将 `infra` 分组放入侧栏底部；UAT 当前仍显示在顶部。 |
+| 套餐 CRUD、审计读取、权限矩阵迁移 | 套餐/审计已合入首版，权限矩阵未完成 | `/panel/ops/billing/plans` 与 `/panel/ops/audit` 已接真实页面/BFF，待合入版本部署后 UAT 验收；`/panel/ops/system` 仍需迁移权限矩阵和黑名单。 |
 
 不要把“页面可打开”写成“账务闭环完成”。当前交接验收只能确认页面、权限、空态和写操作保护；真实金额、PAYG 入账和全局对账仍以 P0 验收记录为准。
 

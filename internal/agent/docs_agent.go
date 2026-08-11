@@ -61,22 +61,29 @@ func (h *Handler) searchDocs(query string) []content.SearchHit {
 	out := make([]content.SearchHit, 0)
 	for _, collection := range h.service.GetSnapshot().Collections {
 		for _, version := range collection.Versions {
-			if !strings.Contains(strings.ToLower(version.Title+" "+version.Description), query) {
+			haystack := strings.ToLower(strings.Join([]string{
+				version.Title,
+				version.Description,
+				version.Plaintext,
+				strings.Join(version.Tags, " "),
+			}, " "))
+			if !strings.Contains(haystack, query) {
 				continue
 			}
-			page := h.service.GetSnapshot().PagesByKey[collection.Slug+"::"+version.Slug]
 			out = append(out, content.SearchHit{
 				Kind:       "doc",
 				Slug:       collection.Slug + "/" + version.Slug,
 				Title:      version.Title,
 				Excerpt:    version.Description,
-				SourcePath: collection.Slug + "/" + version.Slug,
+				SourcePath: version.SourcePath,
 				HTML:       version.HTML,
+				Plaintext:  version.Plaintext,
+				Collection: collection.Title,
+				Href:       "/docs/" + collection.Slug + "/" + version.Slug,
 			})
 			if len(out) >= 10 {
 				return out
 			}
-			_ = page
 		}
 	}
 	return out
