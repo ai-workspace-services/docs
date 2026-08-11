@@ -18,6 +18,7 @@ Go service for Cloud-Neutral documentation delivery and `docs-agent` actions.
 - `GET /healthz`
 - `GET /api/v1/docs/home`
 - `GET /api/v1/docs/collections`
+- `GET /api/v1/docs/search?query={query}&lang={zh|en}`
 - `GET /api/v1/docs/pages/{collection}/{slugPath}`
 - `GET /api/v1/blogs`
 - `GET /api/v1/blogs/{slugPath}`
@@ -26,6 +27,21 @@ Go service for Cloud-Neutral documentation delivery and `docs-agent` actions.
 - `POST /api/v1/agent/invoke`
 
 All `/api/v1/*` endpoints require `X-Service-Token`.
+
+## Documentation experience
+
+The service keeps each document available in several complementary forms:
+
+- rendered HTML for the reader;
+- original Markdown for copying, AI-assisted reading, and portable reuse;
+- plaintext for local full-text search;
+- heading metadata for an on-page table of contents;
+- repository source paths and GitHub edit links when `KNOWLEDGE_REPO_URL` points to GitHub.
+
+Search is local to the synchronized knowledge repository. It indexes titles,
+descriptions, tags, and document bodies without sending documentation content to
+a third-party search provider. The portal loads search as an optional enhancement;
+the document HTML and Markdown remain usable when JavaScript search is unavailable.
 
 ## CI/CD 与 Vault 鉴权 (Vault OIDC Role)
 

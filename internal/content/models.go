@@ -36,6 +36,10 @@ type DocVersion struct {
 	Language    string    `json:"language,omitempty"`
 	UpdatedAt   string    `json:"updatedAt,omitempty"`
 	Tags        []string  `json:"tags"`
+	Markdown    string    `json:"markdown,omitempty"`
+	Plaintext   string    `json:"plaintext,omitempty"`
+	SourcePath  string    `json:"sourcePath,omitempty"`
+	EditURL     string    `json:"editUrl,omitempty"`
 	HTML        string    `json:"html"`
 	TOC         []TOCItem `json:"toc"`
 	Category    string    `json:"category,omitempty"`
@@ -98,6 +102,8 @@ type SearchHit struct {
 	SourcePath string `json:"sourcePath"`
 	HTML       string `json:"html,omitempty"`
 	Plaintext  string `json:"plaintext,omitempty"`
+	Collection string `json:"collection,omitempty"`
+	Href       string `json:"href,omitempty"`
 }
 
 type Snapshot struct {

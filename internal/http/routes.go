@@ -3,6 +3,8 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -87,6 +89,7 @@ func (a *App) Routes() http.Handler {
 	api := http.NewServeMux()
 	api.HandleFunc("/api/v1/docs/home", a.handleDocsHome)
 	api.HandleFunc("/api/v1/docs/collections", a.handleDocCollections)
+	api.HandleFunc("/api/v1/docs/search", a.handleDocsSearch)
 	api.HandleFunc("/api/v1/docs/pages/", a.handleDocPage)
 	api.HandleFunc("/api/v1/blogs/", a.handleBlogPost)
 	api.HandleFunc("/api/v1/blogs", a.handleBlogs)
@@ -144,7 +147,7 @@ func (a *App) handleDocPage(w http.ResponseWriter, r *http.Request) {
 	if lang != "default" {
 		langKey := parts[0] + ":" + lang + "::" + parts[1]
 		if page, ok := snapshot.PagesByKey[langKey]; ok {
-			writeJSON(w, http.StatusOK, page)
+			writeJSON(w, http.StatusOK, a.withRepositoryLinks(page))
 			return
 		}
 	}
@@ -154,7 +157,101 @@ func (a *App) handleDocPage(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "not_found"})
 		return
 	}
-	writeJSON(w, http.StatusOK, page)
+	writeJSON(w, http.StatusOK, a.withRepositoryLinks(page))
+}
+
+func (a *App) handleDocsSearch(w http.ResponseWriter, r *http.Request) {
+	query := strings.TrimSpace(r.URL.Query().Get("query"))
+	if query == "" {
+		writeJSON(w, http.StatusOK, []content.SearchHit{})
+		return
+	}
+
+	limit := parseInt(r.URL.Query().Get("limit"), 10)
+	if limit > 20 {
+		limit = 20
+	}
+	terms := strings.Fields(strings.ToLower(query))
+	collections := filterCollectionsByLang(a.GetSnapshot().Collections, resolveLang(r))
+	type rankedHit struct {
+		hit   content.SearchHit
+		score int
+	}
+	ranked := make([]rankedHit, 0)
+	for _, collection := range collections {
+		for _, version := range collection.Versions {
+			title := strings.ToLower(version.Title)
+			description := strings.ToLower(version.Description)
+			haystack := strings.ToLower(strings.Join([]string{
+				version.Title,
+				version.Description,
+				version.Plaintext,
+				strings.Join(version.Tags, " "),
+			}, " "))
+			score := 0
+			matched := true
+			for _, term := range terms {
+				if !strings.Contains(haystack, term) {
+					matched = false
+					break
+				}
+				score++
+				if strings.Contains(title, term) {
+					score += 8
+				} else if strings.Contains(description, term) {
+					score += 4
+				}
+			}
+			if !matched {
+				continue
+			}
+			href := "/docs/" + collection.Slug + "/" + version.Slug
+			ranked = append(ranked, rankedHit{
+				score: score,
+				hit: content.SearchHit{
+					Kind:       "doc",
+					Slug:       collection.Slug + "/" + version.Slug,
+					Title:      version.Title,
+					Excerpt:    version.Description,
+					SourcePath: version.SourcePath,
+					Collection: collection.Title,
+					Href:       href,
+				},
+			})
+		}
+	}
+	sort.SliceStable(ranked, func(i, j int) bool {
+		return ranked[i].score > ranked[j].score
+	})
+	if len(ranked) > limit {
+		ranked = ranked[:limit]
+	}
+	hits := make([]content.SearchHit, 0, len(ranked))
+	for _, item := range ranked {
+		hits = append(hits, item.hit)
+	}
+	writeJSON(w, http.StatusOK, hits)
+}
+
+func (a *App) withRepositoryLinks(page content.DocPage) content.DocPage {
+	page.Version.EditURL = githubEditURL(a.cfg.KnowledgeRepoURL, page.Version.SourcePath)
+	return page
+}
+
+func githubEditURL(repositoryURL, sourcePath string) string {
+	repositoryURL = strings.TrimSpace(repositoryURL)
+	sourcePath = strings.TrimLeft(strings.TrimSpace(sourcePath), "/")
+	if repositoryURL == "" || sourcePath == "" {
+		return ""
+	}
+	if strings.HasPrefix(repositoryURL, "git@github.com:") {
+		repositoryURL = "https://github.com/" + strings.TrimPrefix(repositoryURL, "git@github.com:")
+	}
+	parsed, err := url.Parse(strings.TrimSuffix(repositoryURL, ".git"))
+	if err != nil || parsed.Hostname() != "github.com" {
+		return ""
+	}
+	return strings.TrimRight(parsed.String(), "/") + "/edit/main/" + sourcePath
 }
 
 // filterCollectionsByLang filters collection metadata by language

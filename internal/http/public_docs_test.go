@@ -26,6 +26,7 @@ func TestPublicDocsRoutes(t *testing.T) {
 
 	app, err := NewApp(config.Config{
 		KnowledgeRepoPath: repoPath,
+		KnowledgeRepoURL:  "https://github.com/example/knowledge.git",
 		Port:              "8084",
 	})
 	if err != nil {
@@ -98,6 +99,46 @@ func TestPublicDocsRoutes(t *testing.T) {
 			t.Fatalf("expected localized page, got %q", body)
 		}
 	})
+
+	t.Run("searches document bodies", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/docs/search?query=guide", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, `"href":"/docs/guide/overview"`) || !strings.Contains(body, `"title":"Overview"`) {
+			t.Fatalf("expected searchable document result, got %q", body)
+		}
+	})
+
+	t.Run("exposes portable markdown and repository metadata", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/docs/pages/guide/overview", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, `"markdown":"# Overview\n\nGuide body."`) {
+			t.Fatalf("expected original markdown, got %q", body)
+		}
+		if !strings.Contains(body, `"editUrl":"https://github.com/example/knowledge/edit/main/docs/guide/overview.md"`) {
+			t.Fatalf("expected GitHub edit URL, got %q", body)
+		}
+	})
+}
+
+func TestGitHubEditURL(t *testing.T) {
+	if got := githubEditURL("git@github.com:example/knowledge.git", "docs/guide/overview.md"); got != "https://github.com/example/knowledge/edit/main/docs/guide/overview.md" {
+		t.Fatalf("unexpected SSH edit URL %q", got)
+	}
+	if got := githubEditURL("https://git.example.com/example/knowledge.git", "docs/guide/overview.md"); got != "" {
+		t.Fatalf("expected unsupported host to return no edit URL, got %q", got)
+	}
 }
 
 func mustWriteFile(t *testing.T, path, body string) {
