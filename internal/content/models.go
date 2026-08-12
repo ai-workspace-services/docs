@@ -79,6 +79,7 @@ type BlogPost struct {
 	Tags       []string      `json:"tags"`
 	Excerpt    string        `json:"excerpt"`
 	HTML       string        `json:"html"`
+	TOC        []TOCItem     `json:"toc"`
 	Category   *BlogCategory `json:"category,omitempty"`
 	Language   string        `json:"language,omitempty"`
 	SourcePath string        `json:"sourcePath"`

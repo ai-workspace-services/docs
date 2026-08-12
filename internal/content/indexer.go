@@ -276,7 +276,7 @@ func buildBlogPost(contentRoot, absolutePath string) (BlogPost, error) {
 		return BlogPost{}, err
 	}
 	meta, body := parseFrontmatter(string(raw))
-	html, _, title, excerpt, err := render.RenderMarkdown(body)
+	html, toc, title, excerpt, err := render.RenderMarkdown(body)
 	if err != nil {
 		return BlogPost{}, err
 	}
@@ -297,6 +297,7 @@ func buildBlogPost(contentRoot, absolutePath string) (BlogPost, error) {
 		Tags:       stringSlice(meta["tags"]),
 		Excerpt:    pickString(meta, "excerpt", excerpt, ""),
 		HTML:       html,
+		TOC:        mapTOC(toc),
 		Category:   category,
 		Language:   lang,
 		SourcePath: filepath.ToSlash(filepath.Join("content", relative)),
