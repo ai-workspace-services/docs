@@ -25,7 +25,10 @@ func main() {
 			ticker := time.NewTicker(cfg.ReloadInterval)
 			defer ticker.Stop()
 			for range ticker.C {
-				app.Reload(true)
+				result := app.Reload(true)
+				if !result.Reloaded {
+					log.Printf("content reload failed: %s", result.Message)
+				}
 			}
 		}()
 	}

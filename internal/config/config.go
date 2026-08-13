@@ -13,6 +13,7 @@ import (
 type Config struct {
 	KnowledgeRepoURL     string
 	KnowledgeRepoPath    string
+	KnowledgeRepoRef     string
 	Port                 string
 	InternalServiceToken string
 	ReloadInterval       time.Duration
@@ -32,13 +33,17 @@ func Load() (Config, error) {
 	cfg := Config{
 		KnowledgeRepoURL:     strings.TrimSpace(os.Getenv("KNOWLEDGE_REPO_URL")),
 		KnowledgeRepoPath:    strings.TrimSpace(os.Getenv("KNOWLEDGE_REPO_PATH")),
+		KnowledgeRepoRef:     strings.TrimSpace(os.Getenv("KNOWLEDGE_REPO_REF")),
 		Port:                 strings.TrimSpace(os.Getenv("DOCS_SERVICE_PORT")),
 		InternalServiceToken: strings.TrimSpace(os.Getenv("INTERNAL_SERVICE_TOKEN")),
 		ReloadInterval:       5 * time.Minute,
 	}
 
 	if cfg.KnowledgeRepoPath == "" {
-		cfg.KnowledgeRepoPath = "/Users/shenlan/workspaces/cloud-neutral-toolkit/knowledge"
+		return Config{}, fmt.Errorf("KNOWLEDGE_REPO_PATH is required")
+	}
+	if cfg.KnowledgeRepoRef == "" {
+		cfg.KnowledgeRepoRef = "main"
 	}
 	if cfg.Port == "" {
 		cfg.Port = "8084"

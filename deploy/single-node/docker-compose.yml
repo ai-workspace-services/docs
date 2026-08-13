@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     environment:
       KNOWLEDGE_REPO_PATH: /knowledge
+      KNOWLEDGE_REPO_URL: ${KNOWLEDGE_REPO_URL:-https://github.com/haitaopanhq/knowledge.git}
+      KNOWLEDGE_REPO_REF: ${KNOWLEDGE_REPO_REF:-main}
       DOCS_SERVICE_PORT: 8084
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?set INTERNAL_SERVICE_TOKEN}
       DOCS_RELOAD_INTERVAL: ${DOCS_RELOAD_INTERVAL:-5m}
