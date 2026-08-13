@@ -6,6 +6,7 @@ Go service for Cloud-Neutral documentation delivery and `docs-agent` actions.
 
 - `KNOWLEDGE_REPO_PATH`: Absolute path to the local git repository (e.g., `/Users/xxx/knowledge`). If the directory is not a git repo but `KNOWLEDGE_REPO_URL` is set, the service will attempt to initialize and sync it from the upstream.
 - `KNOWLEDGE_REPO_URL`: (Optional) Upstream git repository URL to watch and sync from (e.g., `https://github.com/haitaopanhq/knowledge.git`).
+- `KNOWLEDGE_REPO_REF`: Branch, tag, or commit to synchronize (default: `main`).
 - `DOCS_SERVICE_PORT`: HTTP listen port
 - `INTERNAL_SERVICE_TOKEN`: shared service-to-service auth token
 - `DOCS_RELOAD_INTERVAL`: background reload interval, for example `5m`
@@ -42,6 +43,13 @@ Search is local to the synchronized knowledge repository. It indexes titles,
 descriptions, tags, and document bodies without sending documentation content to
 a third-party search provider. The portal loads search as an optional enhancement;
 the document HTML and Markdown remain usable when JavaScript search is unavailable.
+
+The service initializes the Git working tree before its first index build when a
+repository URL is configured. Each reload builds a new in-memory snapshot and
+atomically swaps it only after parsing and rendering succeed. The snapshot exposes
+stable source-file hashes and a content hash through `/healthz`, which makes
+content releases observable without adding a database. A failed Git sync or index
+build leaves the previous known-good snapshot serving.
 
 ## CI/CD 与 Vault 鉴权 (Vault OIDC Role)
 
