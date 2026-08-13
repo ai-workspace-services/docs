@@ -23,6 +23,9 @@
 | [07-status-and-handoff.md](./08-status-and-handoff.md)** | **当前进度、UAT 实测数据、阻塞项、已踩过的坑——接手前先读这篇** |
 | [08-trial-grants-and-topup-gap.md](./09-trial-grants-and-topup-gap.md) | 发放试用额度接口；以及**充值成功但余额不入账**这个代码缺口 |
 | [09-delivery-phases.md](./04-delivery-phases.md) | 分阶段实施与验收 |
+| [10-ops-console-design.md](./10-ops-console-design.md) | 运营台 `/panel/ops` 的设计：为何独立于 `/panel/management`、审计优先、路由与接口清单 |
+| [11-ops-console-handoff.md](./11-ops-console-handoff.md) | 运营台前端交接规格：设计令牌、可复用组件、写操作统一入口、边界情况 |
+| [12-user-center-subscription-and-signup.md](./12-user-center-subscription-and-signup.md) | **用户侧**：`/panel` 用户中心的订阅与注册链路——目录不一致、无充值入口、OAuth 注册无权益 |
 
 ## 现状盘点（2026-08-05 实测）
 
