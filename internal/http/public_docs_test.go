@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -22,6 +23,12 @@ func TestPublicDocsRoutes(t *testing.T) {
 	mustWriteFile(t, filepath.Join(repoPath, "docs", "guide", "overview.zh.md"), "---\nslug: overview\nlang: zh\ntitle: 欢迎页\ndescription: 中文页面\n---\n# 欢迎页\n\n中文内容。")
 	if err := os.MkdirAll(filepath.Join(repoPath, "content"), 0o755); err != nil {
 		t.Fatalf("mkdir content: %v", err)
+	}
+	if output, err := exec.Command("git", "-C", repoPath, "init").CombinedOutput(); err != nil {
+		t.Fatalf("init test repository: %v\n%s", err, output)
+	}
+	if output, err := exec.Command("git", "-C", repoPath, "remote", "add", "origin", "https://github.com/example/knowledge.git").CombinedOutput(); err != nil {
+		t.Fatalf("configure test repository: %v\n%s", err, output)
 	}
 
 	app, err := NewApp(config.Config{

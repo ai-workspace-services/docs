@@ -116,6 +116,8 @@ type Snapshot struct {
 	Blogs                []BlogPost
 	BlogsBySlug          map[string]BlogPost
 	BlogCategories       []BlogCategory
+	SourceHashes         map[string]string `json:"sourceHashes,omitempty"`
+	ContentHash          string            `json:"contentHash,omitempty"`
 }
 
 type ReloadResult struct {

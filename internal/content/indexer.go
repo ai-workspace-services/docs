@@ -1,6 +1,8 @@
 package content
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"os"
@@ -35,6 +37,10 @@ func (i *Indexer) Build() (*Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	sourceHashes, contentHash, err := i.buildSourceHashes()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Snapshot{
 		DocsHomeByLang:       i.buildDocsHome(),
@@ -45,7 +51,66 @@ func (i *Indexer) Build() (*Snapshot, error) {
 		Blogs:                blogs,
 		BlogsBySlug:          blogMap,
 		BlogCategories:       categories,
+		SourceHashes:         sourceHashes,
+		ContentHash:          contentHash,
 	}, nil
+}
+
+// buildSourceHashes creates a deterministic content fingerprint without storing
+// content outside the in-memory snapshot. It is used for observability,
+// conditional reloads, and proving that an unchanged content revision remains
+// unchanged across reloads.
+func (i *Indexer) buildSourceHashes() (map[string]string, string, error) {
+	hashes := make(map[string]string)
+	for _, rootName := range []string{"docs", "content"} {
+		root := filepath.Join(i.RepoPath, rootName)
+		if _, err := os.Stat(root); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return nil, "", fmt.Errorf("stat %s: %w", rootName, err)
+		}
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() || !isHashableSource(path) {
+				return nil
+			}
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			relative, err := filepath.Rel(i.RepoPath, path)
+			if err != nil {
+				return err
+			}
+			digest := sha256.Sum256(raw)
+			hashes[filepath.ToSlash(relative)] = hex.EncodeToString(digest[:])
+			return nil
+		})
+		if err != nil {
+			return nil, "", fmt.Errorf("hash %s: %w", rootName, err)
+		}
+	}
+
+	paths := make([]string, 0, len(hashes))
+	for path := range hashes {
+		paths = append(paths, path)
+	}
+	slices.Sort(paths)
+	combined := sha256.New()
+	for _, path := range paths {
+		_, _ = combined.Write([]byte(path))
+		_, _ = combined.Write([]byte{0})
+		_, _ = combined.Write([]byte(hashes[path]))
+		_, _ = combined.Write([]byte{0})
+	}
+	return hashes, hex.EncodeToString(combined.Sum(nil)), nil
+}
+
+func isHashableSource(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".md" || ext == ".mdx" || ext == ".yaml" || ext == ".yml"
 }
 
 func (i *Indexer) buildDocsNavigation() (map[string]DocsNavigation, error) {

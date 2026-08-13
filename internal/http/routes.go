@@ -2,8 +2,11 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,11 +25,24 @@ type App struct {
 	agent   *agent.Handler
 
 	mu       sync.RWMutex
+	reloadMu sync.Mutex
 	snapshot *content.Snapshot
 	loadedAt time.Time
 }
 
 func NewApp(cfg config.Config) (*App, error) {
+	if cfg.KnowledgeRepoPath == "" {
+		return nil, fmt.Errorf("knowledge repository path is required")
+	}
+	if _, err := os.Stat(filepath.Join(cfg.KnowledgeRepoPath, ".git")); err != nil {
+		if os.IsNotExist(err) && cfg.KnowledgeRepoURL != "" {
+			if _, _, syncErr := gitsync.Sync(cfg.KnowledgeRepoURL, cfg.KnowledgeRepoPath, cfg.KnowledgeRepoRef); syncErr != nil {
+				return nil, fmt.Errorf("initial knowledge sync failed: %w", syncErr)
+			}
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("check knowledge repository: %w", err)
+		}
+	}
 	indexer := content.NewIndexer(cfg.KnowledgeRepoPath)
 	snapshot, err := indexer.Build()
 	if err != nil {
@@ -53,13 +69,16 @@ func (a *App) GetSnapshot() *content.Snapshot {
 }
 
 func (a *App) Reload(pull bool) content.ReloadResult {
+	a.reloadMu.Lock()
+	defer a.reloadMu.Unlock()
+
 	result := content.ReloadResult{
 		Pulled:   false,
 		Reloaded: false,
 		LoadedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	if pull {
-		ok, message, err := gitsync.Sync(a.cfg.KnowledgeRepoURL, a.cfg.KnowledgeRepoPath)
+		ok, message, err := gitsync.Sync(a.cfg.KnowledgeRepoURL, a.cfg.KnowledgeRepoPath, a.cfg.KnowledgeRepoRef)
 		result.Pulled = ok
 		result.Message = message
 		if err != nil {
@@ -102,9 +121,15 @@ func (a *App) Routes() http.Handler {
 }
 
 func (a *App) handleHealth(w http.ResponseWriter, _ *http.Request) {
+	a.mu.RLock()
+	loadedAt := a.loadedAt
+	snapshot := a.snapshot
+	a.mu.RUnlock()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":   "ok",
-		"loadedAt": a.loadedAt.Format(time.RFC3339),
+		"status":          "ok",
+		"loadedAt":        loadedAt.Format(time.RFC3339),
+		"contentHash":     snapshot.ContentHash,
+		"sourceFileCount": len(snapshot.SourceHashes),
 	})
 }
 
