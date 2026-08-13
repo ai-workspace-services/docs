@@ -53,15 +53,18 @@ Webhook URL 由 `--env`/`--domain-base` 拼出：`https://accounts-{env}.{domain
   PAYG-TOPUP-500   -> price_1MnO...
 ```
 
-把这些值通过 admin 接口写回 `billing_plans`：
+加 `--write-catalog`，脚本会直接把这些值连同挂牌价写回 `billing_plans`，不需要手工 curl：
 
 ```bash
-curl -X PUT "https://accounts-uat.onwalk.net/api/auth/admin/billing/plans/PRO-MONTHLY" \
-  -H "Content-Type: application/json" --cookie "<admin session>" \
-  -d '{"planId": "PRO-MONTHLY", "stripePriceId": "price_1AbC...", "displayName": "Pro 月付", "kind": "subscription", "includedQuotaBytes": 21474836480, "packageName": "pro", "active": true}'
+STRIPE_SECRET_KEY=sk_test_xxx ACCOUNTS_ADMIN_TOKEN=<admin bearer> \
+  scripts/stripe-sync-catalog.sh --env uat --domain-base onwalk.net --write-catalog
 ```
 
-（这一步目前需要已登录的 admin session；03-operations-console.md 里规划的管理端能力补齐后可以脚本化。）
+写回走的是 `PUT /api/auth/admin/billing/plans/:planId`，**这是一次全量替换**，所以目录文件里每个 price 都带一个 `plan:` 块，描述 `display_name` / `kind` / `included_quota_bytes` / `package_name` / `price_unit` / `sort_order`——只写 `stripe_price_id` 会把套餐名和配额清空。挂牌价直接取 `unit_amount` 与 `currency`，与 Stripe 上创建的价格同源。
+
+请求带 `reason=stripe-sync-catalog.sh --env <env>`，所以一次目录同步和运营台里的手工改动一样会落进 `audit_logs`。
+
+`--dry-run` 同样适用于写回：只打印将要 PUT 的 JSON，不发请求。
 
 若创建了新 Webhook Endpoint，脚本会打印一次性显示的签名密钥——手动写入 Vault：
 
@@ -78,12 +81,17 @@ vault kv patch kv/billing-service SANDBOX_STRIPE_WEBHOOK_SECRET='whsec_...'
      scripts/stripe-sync-catalog.sh --env prod --domain-base svc.plus
    ```
 3. 新账号下会创建出结构完全相同、`id`/`lookup_key` 完全相同的 Product/Price/Webhook（`lookup_key` 与 `id` 是脚本写死在目录文件里的，不是 Stripe 自动生成的，所以两个账号里的标识符一致）
-4. 把新账号返回的 `price_id`（**值不同**，但 `plan_id` 到目录的映射关系不变）和新的 webhook secret 更新到对应环境的 `billing_plans` 与 Vault
+4. 加 `--write-catalog`，脚本直接把新账号的 `price_id` 与挂牌价写回 `billing_plans`；只有 webhook secret 仍需手工写入 Vault（Stripe 只在创建那一刻返回一次）
 
-`lookup_key`/自定义 `id` 跨账号一致这一点是关键：应用代码、`billing_plans.plan_id`、这份目录文件都不需要因为换账号而改一个字符，只有 Vault 里的密钥和 admin 接口里的 `stripe_price_id` 两处需要更新。
+   ```bash
+   STRIPE_SECRET_KEY=sk_live_us_xxx ACCOUNTS_ADMIN_TOKEN=<admin bearer> \
+     scripts/stripe-sync-catalog.sh --env prod --domain-base svc.plus --write-catalog
+   ```
+
+`lookup_key`/自定义 `id` 跨账号一致这一点是关键：应用代码、`billing_plans.plan_id`、这份目录文件都不需要因为换账号而改一个字符。换账号退化成「换一个密钥、重跑一次脚本、把 webhook secret 写进 Vault」。
 
 ## 已知限制
 
 - **PAYG 充值面额固定**（¥50/¥100/¥500）。支持任意金额需要改用 Stripe Checkout 的 `custom` 金额模式，不是这个脚本要解决的问题（脚本管的是目录，不是单次下单流程）
 - **改价必须手工决定新 `lookup_key`**，脚本不会自动生成版本号——这是有意的：价格变更是业务决策，不该被自动化悄悄做掉
-- **`billing_plans` 回写目前仍是手动一步**，见上文；等 03-operations-console.md 的管理端接口补齐后可以让脚本直接调用
+- **webhook secret 仍需手工写入 Vault**，因为 Stripe 只在创建端点那一刻返回一次，脚本不会写文件或落盘
