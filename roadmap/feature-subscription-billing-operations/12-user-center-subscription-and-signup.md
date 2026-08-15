@@ -135,7 +135,21 @@ G1–G3 是**「用户拿钱买不到东西」**这一类，其余是体验与�
 
 ---
 
-## 三、必须先拍板的决策
+## 三、决策（2026-08-13 已拍板）
+
+> 五个决策均已确认，下方保留推导过程。**结论集中在这里**：
+>
+> | # | 结论 |
+> | --- | --- |
+> | D1 | 给 `billing_plans` 加 `price_amount`/`price_currency`/`price_unit`，挂牌价进目录、进审计 ✅ 已实现（accounts#75） |
+> | D2 | 充值维持 Stripe 一次性 Checkout ✅ 与既有 `creditTopUpBalance` 一致，无需改动 |
+> | D3 | **Free/试用档 = 7 天内 5GB 高速流量；用完不订阅即断流**，并发邮件引导订阅 |
+> | D4 | OAuth 邮箱**已验证**即可直接发试用；provider 未返回已验证的，仍需走验证 |
+> | D5 | 收窄到目录里存在的商品，ScopeHub / CloudFlow 移除 ✅ 已实现（portal#218） |
+>
+> D3 有两处待改：`TRIAL-7D.included_quota_bytes` 目前是 **10GB**，须改为 **5GB**（5368709120）；`/prices` 的 Free 卡片文案「每周 1 小时高速流量，用完降级 VPS」与「7 天 5GB、之后断流」不符，须一并改写——注意结论是**断流**而不是降级到 VPS。
+
+## 附：决策推导过程
 
 ### D1 · 价格的事实源放哪里？（阻塞 G1/G4，其余都等它）
 
@@ -219,6 +233,45 @@ P0 完成的判据是一句话：**一个新注册用户能在控制台里花掉
 8. OAuth 注册按 D4 修复（**这条如果选了方案 1，实现成本很低，可以提前到 P0 一起做**）
 9. 升降档：accounts 增加 `POST /subscriptions/change-plan`，走 Stripe subscription update（proration 策略需单独确认）；用户中心提供月付↔年付切换
 10. 价格字段落库（D1 方案 A），`/prices` 与用户中心同时切到目录取价，ops 台的「调整价格」变成真功能
+
+---
+
+## 五、把 XConnect 订阅跑通（UAT runbook）
+
+代码侧已经就位（accounts#75 / #77，portal#218）。**真正的阻塞不是代码，是 UAT 上没有 Stripe 凭据**：
+
+```bash
+curl -X POST https://accounts-uat.onwalk.net/api/billing/stripe/webhook \
+  -H 'Content-Type: application/json' -d '{}'
+# HTTP 503 {"error":"stripe_not_configured","message":"stripe is not configured"}
+```
+
+`stripeWebhook` 的第一行就是 `h.stripe.enabled()` 判断，503 说明 `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` 仍然是空的——与 [README 现状盘点](./README.md) 在 2026-08-05 记的完全一致，**至 2026-08-13 未变**。在这一步解决之前，下单按钮无论怎么改都只会拿到 503。
+
+按顺序执行：
+
+| # | 步骤 | 谁做 | 判据 |
+| --- | --- | --- | --- |
+| 1 | 在 Stripe 拿一个 test mode secret key（`sk_test_...`） | 人工，Stripe 后台 | — |
+| 2 | 跑目录同步，创建 Product / Price / Webhook Endpoint | `scripts/stripe-sync-catalog.sh --env uat --domain-base onwalk.net` | 打印出 5 个 `price_...` |
+| 3 | 把 `sk_test_...` 与第 2 步一次性打印的 `whsec_...` 写进 Vault，重新渲染 `secrets.env` 并重启 accounts | Ansible / Doco-CD | 上面那条 curl 从 503 变成 401 `invalid_signature` |
+| 4 | 合并并部署 accounts#75、#77、portal#218 | — | `/api/billing/plans` 的 payload 出现 `priceAmount` 字段 |
+| 5 | 带 `--write-catalog` 重跑同步，把 price id 与挂牌价写回 `billing_plans` | 需要 `ACCOUNTS_ADMIN_TOKEN` | 目录从 2 条变 8 条，三档付费 `stripePriceId` 非空 |
+| 6 | 把 UAT 上 `TRIAL-7D` 的配额从 10GiB 改成 5GiB | 运营台 `/panel/ops/billing/plans`（**不要直连数据库**，走接口才进审计） | 目录 `includedQuotaBytes` = 5368709120 |
+| 7 | 用测试卡走一遍订阅与充值 | 人工 | 见下 |
+
+第 2 步不必等第 3 步——同步脚本只用 `STRIPE_SECRET_KEY` 直连 Stripe API，不经过 accounts。
+
+### 第 7 步的验收判据
+
+1. `/prices` 与 `/panel/subscription` 上同一个 planId 的**金额、货币、可购买状态逐条一致**
+2. 订阅 `PRO-MONTHLY` 成功后：`subscriptions` 多一行 `active`，`account_billing_profiles` 的 `package_name` 变 `pro`，配额按目录重置
+3. 充值 `PAYG-TOPUP-50` 成功后：`current_balance` +50，`billing_ledger` 多一条 `topup`
+4. **在 Stripe 后台手动重投同一个 `checkout.session.completed` 事件，余额不变**——这条是 `creditTopUpBalance` 幂等性的回归验证，是整条链路上唯一直接关系到重复扣款的断言，**必须实测，不能只看代码**
+
+### 关于 `STRIPE_ALLOWED_PRICE_IDS`
+
+不需要配。`validCheckoutPrice` 一旦发现目录里存在任何带 `stripe_price_id` 的 active 套餐，就**只认目录**，env 允许列表仅在目录完全为空时作为引导期兜底。第 5 步做完之后它就永久失效了。
 
 ---
 

@@ -37,22 +37,30 @@ func (i *Indexer) Build() (*Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	products, productMap, err := i.buildWebsiteProducts()
+	if err != nil {
+		return nil, err
+	}
+	homepageByLang := i.buildWebsiteHomepage()
 	sourceHashes, contentHash, err := i.buildSourceHashes()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Snapshot{
-		DocsHomeByLang:       i.buildDocsHome(),
-		DocsNavigationByLang: docsNavigation,
-		Collections:          collections,
-		CollectionsBySlug:    mapCollections(collections),
-		PagesByKey:           pagesByKey,
-		Blogs:                blogs,
-		BlogsBySlug:          blogMap,
-		BlogCategories:       categories,
-		SourceHashes:         sourceHashes,
-		ContentHash:          contentHash,
+		DocsHomeByLang:            i.buildDocsHome(),
+		DocsNavigationByLang:      docsNavigation,
+		Collections:               collections,
+		CollectionsBySlug:         mapCollections(collections),
+		PagesByKey:                pagesByKey,
+		Blogs:                     blogs,
+		BlogsBySlug:               blogMap,
+		BlogCategories:            categories,
+		WebsiteProducts:           products,
+		WebsiteProductsBySlugLang: productMap,
+		WebsiteHomepageByLang:     homepageByLang,
+		SourceHashes:              sourceHashes,
+		ContentHash:               contentHash,
 	}, nil
 }
 
@@ -168,6 +176,11 @@ func (i *Indexer) buildDocsHome() map[string]DocsHome {
 
 func (i *Indexer) buildDocs() ([]DocCollection, map[string]DocPage, error) {
 	root := filepath.Join(i.RepoPath, "docs")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		return []DocCollection{}, map[string]DocPage{}, nil
+	} else if err != nil {
+		return nil, nil, err
+	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read docs root: %w", err)
@@ -251,6 +264,11 @@ func (i *Indexer) buildDocs() ([]DocCollection, map[string]DocPage, error) {
 
 func (i *Indexer) buildBlogs() ([]BlogPost, map[string]BlogPost, []BlogCategory, error) {
 	root := filepath.Join(i.RepoPath, "content")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		return []BlogPost{}, map[string]BlogPost{}, []BlogCategory{}, nil
+	} else if err != nil {
+		return nil, nil, nil, err
+	}
 	posts := make([]BlogPost, 0)
 	postMap := make(map[string]BlogPost)
 	categoryMap := make(map[string]BlogCategory)
@@ -259,6 +277,11 @@ func (i *Indexer) buildBlogs() ([]BlogPost, map[string]BlogPost, []BlogCategory,
 			return walkErr
 		}
 		if d.IsDir() || !isMarkdown(path) {
+			return nil
+		}
+		relative, _ := filepath.Rel(root, path)
+		relSlash := filepath.ToSlash(relative)
+		if strings.HasPrefix(relSlash, "website/") || relSlash == "website" {
 			return nil
 		}
 		post, err := buildBlogPost(root, path)
@@ -286,6 +309,124 @@ func (i *Indexer) buildBlogs() ([]BlogPost, map[string]BlogPost, []BlogCategory,
 		return strings.Compare(a.Key, b.Key)
 	})
 	return posts, postMap, categories, nil
+}
+
+type rawProductFrontmatter struct {
+	Hero      WebsiteHero       `yaml:"hero"`
+	Wizard    *WebsiteWizard    `yaml:"wizard,omitempty"`
+	Showcases []WebsiteShowcase `yaml:"showcases"`
+}
+
+func (i *Indexer) buildWebsiteProducts() ([]WebsiteProduct, map[string]WebsiteProduct, error) {
+	root := filepath.Join(i.RepoPath, "content", "website", "product")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		return []WebsiteProduct{}, map[string]WebsiteProduct{}, nil
+	} else if err != nil {
+		return nil, nil, err
+	}
+
+	products := make([]WebsiteProduct, 0)
+	productMap := make(map[string]WebsiteProduct)
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read website product root: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		slug := entry.Name()
+		productDir := filepath.Join(root, slug)
+
+		_ = filepath.WalkDir(productDir, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil || d.IsDir() || !isMarkdown(path) {
+				return nil
+			}
+
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			stat, _ := os.Stat(path)
+
+			frontmatterBytes, _ := extractFrontmatterRaw(string(raw))
+			var rawData rawProductFrontmatter
+			if len(frontmatterBytes) > 0 {
+				_ = yaml.Unmarshal(frontmatterBytes, &rawData)
+			}
+
+			if strings.TrimSpace(rawData.Hero.Title) == "" {
+				rawData.Hero.Title = humanize(slug)
+			}
+			if strings.TrimSpace(rawData.Hero.CTA.Href) == "" {
+				rawData.Hero.CTA.Href = "/download"
+			}
+			if strings.TrimSpace(rawData.Hero.CTA.Label) == "" {
+				rawData.Hero.CTA.Label = "Download"
+			}
+
+			rel, _ := filepath.Rel(productDir, path)
+			parts := strings.Split(filepath.ToSlash(rel), "/")
+			lang := "zh"
+			if len(parts) >= 2 && (parts[0] == "zh" || parts[0] == "en") {
+				lang = parts[0]
+			}
+
+			var updatedAt string
+			if stat != nil {
+				updatedAt = stat.ModTime().UTC().Format(time.RFC3339)
+			}
+
+			sourcePath, _ := filepath.Rel(i.RepoPath, path)
+
+			prod := WebsiteProduct{
+				Slug:       slug,
+				Language:   lang,
+				Hero:       rawData.Hero,
+				Wizard:     rawData.Wizard,
+				Showcases:  rawData.Showcases,
+				SourcePath: filepath.ToSlash(sourcePath),
+				UpdatedAt:  updatedAt,
+			}
+
+			products = append(products, prod)
+			productMap[slug+":"+lang] = prod
+			if lang == "zh" {
+				if _, exists := productMap[slug]; !exists {
+					productMap[slug] = prod
+				}
+			}
+			return nil
+		})
+	}
+
+	slices.SortFunc(products, func(a, b WebsiteProduct) int {
+		return strings.Compare(a.Slug, b.Slug)
+	})
+
+	return products, productMap, nil
+}
+
+func (i *Indexer) buildWebsiteHomepage() map[string]map[string]any {
+	result := map[string]map[string]any{}
+	files := map[string]string{
+		"zh":      filepath.Join(i.RepoPath, "content", "website", "homepage", "zh", "marketing.md"),
+		"en":      filepath.Join(i.RepoPath, "content", "website", "homepage", "en", "marketing.md"),
+		"default": filepath.Join(i.RepoPath, "content", "website", "homepage", "zh", "marketing.md"),
+	}
+	for lang, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		meta, _ := parseFrontmatter(string(raw))
+		if len(meta) > 0 {
+			result[lang] = meta
+		}
+	}
+	return result
 }
 
 func buildDocVersion(docsRoot, collection, absolutePath string) (DocVersion, DocPage, error) {
@@ -370,20 +511,28 @@ func buildBlogPost(contentRoot, absolutePath string) (BlogPost, error) {
 	}, nil
 }
 
-func parseFrontmatter(raw string) (map[string]any, string) {
+func extractFrontmatterRaw(raw string) ([]byte, string) {
 	if !strings.HasPrefix(raw, "---\n") {
-		return map[string]any{}, raw
+		return nil, raw
 	}
 	rest := strings.TrimPrefix(raw, "---\n")
 	idx := strings.Index(rest, "\n---\n")
 	if idx < 0 {
+		return nil, raw
+	}
+	return []byte(rest[:idx]), rest[idx+5:]
+}
+
+func parseFrontmatter(raw string) (map[string]any, string) {
+	frontmatterBytes, body := extractFrontmatterRaw(raw)
+	if len(frontmatterBytes) == 0 {
 		return map[string]any{}, raw
 	}
 	meta := map[string]any{}
-	if err := yaml.Unmarshal([]byte(rest[:idx]), &meta); err != nil {
+	if err := yaml.Unmarshal(frontmatterBytes, &meta); err != nil {
 		return map[string]any{}, raw
 	}
-	return meta, rest[idx+5:]
+	return meta, body
 }
 
 func pickString(meta map[string]any, key string, fallback string, defaultValue string) string {

@@ -137,6 +137,45 @@ func TestPublicDocsRoutes(t *testing.T) {
 			t.Fatalf("expected GitHub edit URL, got %q", body)
 		}
 	})
+
+	t.Run("serves website products and homepage", func(t *testing.T) {
+		mustWriteFile(t, filepath.Join(repoPath, "content", "website", "product", "xconnect", "zh", "hero.md"), "---\nhero:\n  badge: 'AI 连接'\n  title: 'XConnect'\n  subtitle: '安全加速'\n  cta:\n    label: '下载'\n    href: '/download'\n---\n")
+		mustWriteFile(t, filepath.Join(repoPath, "content", "website", "homepage", "zh", "marketing.md"), "---\nbrand:\n  title: 'XWorkmate'\n---\n")
+		app.Reload(false)
+
+		// Test /api/v1/products
+		reqProdList := httptest.NewRequest(http.MethodGet, "/api/v1/products?lang=zh", nil)
+		recProdList := httptest.NewRecorder()
+		router.ServeHTTP(recProdList, reqProdList)
+		if recProdList.Code != http.StatusOK {
+			t.Fatalf("expected 200 for products list, got %d", recProdList.Code)
+		}
+		if !strings.Contains(recProdList.Body.String(), "XConnect") {
+			t.Fatalf("expected XConnect in products list, got %q", recProdList.Body.String())
+		}
+
+		// Test /api/v1/products/xconnect
+		reqProd := httptest.NewRequest(http.MethodGet, "/api/v1/products/xconnect?lang=zh", nil)
+		recProd := httptest.NewRecorder()
+		router.ServeHTTP(recProd, reqProd)
+		if recProd.Code != http.StatusOK {
+			t.Fatalf("expected 200 for product detail, got %d", recProd.Code)
+		}
+		if !strings.Contains(recProd.Body.String(), "AI 连接") {
+			t.Fatalf("expected AI 连接 in product detail, got %q", recProd.Body.String())
+		}
+
+		// Test /api/v1/website/homepage
+		reqHome := httptest.NewRequest(http.MethodGet, "/api/v1/website/homepage?lang=zh", nil)
+		recHome := httptest.NewRecorder()
+		router.ServeHTTP(recHome, reqHome)
+		if recHome.Code != http.StatusOK {
+			t.Fatalf("expected 200 for homepage marketing, got %d", recHome.Code)
+		}
+		if !strings.Contains(recHome.Body.String(), "XWorkmate") {
+			t.Fatalf("expected XWorkmate in homepage marketing, got %q", recHome.Body.String())
+		}
+	})
 }
 
 func TestGitHubEditURL(t *testing.T) {

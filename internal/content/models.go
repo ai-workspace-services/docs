@@ -107,17 +107,75 @@ type SearchHit struct {
 	Href       string `json:"href,omitempty"`
 }
 
+type WebsiteCTA struct {
+	Label string `json:"label" yaml:"label"`
+	Href  string `json:"href" yaml:"href"`
+}
+
+type WebsiteHero struct {
+	Badge              string     `json:"badge" yaml:"badge"`
+	Title              string     `json:"title" yaml:"title"`
+	Subtitle           string     `json:"subtitle" yaml:"subtitle"`
+	CTA                WebsiteCTA `json:"cta" yaml:"cta"`
+	DownloadURL        string     `json:"downloadUrl,omitempty" yaml:"downloadUrl,omitempty"`
+	SupportedPlatforms string     `json:"supportedPlatforms,omitempty" yaml:"supportedPlatforms,omitempty"`
+}
+
+type WebsiteWizardStep struct {
+	Step        int    `json:"step" yaml:"step"`
+	Title       string `json:"title" yaml:"title"`
+	Description string `json:"description" yaml:"description"`
+	Platforms   string `json:"platforms,omitempty" yaml:"platforms,omitempty"`
+	Link        string `json:"link,omitempty" yaml:"link,omitempty"`
+}
+
+type WebsiteWizard struct {
+	Title       string              `json:"title" yaml:"title"`
+	Description string              `json:"description" yaml:"description"`
+	Steps       []WebsiteWizardStep `json:"steps" yaml:"steps"`
+}
+
+type WebsiteShowcase struct {
+	Title       string `json:"title" yaml:"title"`
+	Description string `json:"description" yaml:"description"`
+	Icon        string `json:"icon,omitempty" yaml:"icon,omitempty"`
+	Image       string `json:"image,omitempty" yaml:"image,omitempty"`
+	Reverse     bool   `json:"reverse,omitempty" yaml:"reverse,omitempty"`
+}
+
+type WebsiteProduct struct {
+	Slug       string            `json:"slug"`
+	Language   string            `json:"language"`
+	Hero       WebsiteHero       `json:"hero"`
+	Wizard     *WebsiteWizard    `json:"wizard,omitempty"`
+	Showcases  []WebsiteShowcase `json:"showcases"`
+	SourcePath string            `json:"sourcePath"`
+	UpdatedAt  string            `json:"updatedAt,omitempty"`
+}
+
+type WebsiteProductSummary struct {
+	Slug     string `json:"slug"`
+	Title    string `json:"title"`
+	Badge    string `json:"badge"`
+	Subtitle string `json:"subtitle"`
+	Language string `json:"language"`
+	Href     string `json:"href"`
+}
+
 type Snapshot struct {
-	DocsHomeByLang       map[string]DocsHome
-	DocsNavigationByLang map[string]DocsNavigation
-	Collections          []DocCollection
-	CollectionsBySlug    map[string]DocCollection
-	PagesByKey           map[string]DocPage
-	Blogs                []BlogPost
-	BlogsBySlug          map[string]BlogPost
-	BlogCategories       []BlogCategory
-	SourceHashes         map[string]string `json:"sourceHashes,omitempty"`
-	ContentHash          string            `json:"contentHash,omitempty"`
+	DocsHomeByLang            map[string]DocsHome
+	DocsNavigationByLang      map[string]DocsNavigation
+	Collections               []DocCollection
+	CollectionsBySlug         map[string]DocCollection
+	PagesByKey                map[string]DocPage
+	Blogs                     []BlogPost
+	BlogsBySlug               map[string]BlogPost
+	BlogCategories            []BlogCategory
+	WebsiteProducts           []WebsiteProduct
+	WebsiteProductsBySlugLang map[string]WebsiteProduct
+	WebsiteHomepageByLang     map[string]map[string]any
+	SourceHashes              map[string]string `json:"sourceHashes,omitempty"`
+	ContentHash               string            `json:"contentHash,omitempty"`
 }
 
 type ReloadResult struct {
@@ -143,3 +201,4 @@ type ApplyResult struct {
 	Bytes      int          `json:"bytes"`
 	Reload     ReloadResult `json:"reload"`
 }
+
