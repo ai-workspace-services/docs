@@ -112,6 +112,9 @@ func (a *App) Routes() http.Handler {
 	api.HandleFunc("/api/v1/docs/pages/", a.handleDocPage)
 	api.HandleFunc("/api/v1/blogs/", a.handleBlogPost)
 	api.HandleFunc("/api/v1/blogs", a.handleBlogs)
+	api.HandleFunc("/api/v1/products/", a.handleProductDetail)
+	api.HandleFunc("/api/v1/products", a.handleProducts)
+	api.HandleFunc("/api/v1/website/homepage", a.handleWebsiteHomepage)
 	api.HandleFunc("/api/v1/home/latest-blogs", a.handleLatestBlogs)
 	api.HandleFunc("/api/v1/admin/reload", a.handleReload)
 	api.HandleFunc("/api/v1/agent/invoke", a.handleAgentInvoke)
@@ -438,6 +441,75 @@ func (a *App) handleReload(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusBadGateway
 	}
 	writeJSON(w, status, result)
+}
+
+func (a *App) handleProducts(w http.ResponseWriter, r *http.Request) {
+	lang := resolveLang(r)
+	snapshot := a.GetSnapshot()
+	summaries := make([]content.WebsiteProductSummary, 0, len(snapshot.WebsiteProducts))
+	seen := map[string]struct{}{}
+
+	for _, p := range snapshot.WebsiteProducts {
+		if lang != "default" && p.Language != lang && p.Language != "" {
+			continue
+		}
+		if _, ok := seen[p.Slug]; ok {
+			continue
+		}
+		seen[p.Slug] = struct{}{}
+		summaries = append(summaries, content.WebsiteProductSummary{
+			Slug:     p.Slug,
+			Title:    p.Hero.Title,
+			Badge:    p.Hero.Badge,
+			Subtitle: p.Hero.Subtitle,
+			Language: p.Language,
+			Href:     "/products/" + p.Slug,
+		})
+	}
+	writeJSON(w, http.StatusOK, summaries)
+}
+
+func (a *App) handleProductDetail(w http.ResponseWriter, r *http.Request) {
+	lang := resolveLang(r)
+	slug := strings.TrimPrefix(r.URL.Path, "/api/v1/products/")
+	slug = strings.Trim(slug, "/")
+	if slug == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "slug_required"})
+		return
+	}
+
+	snapshot := a.GetSnapshot()
+	if lang != "default" {
+		if prod, ok := snapshot.WebsiteProductsBySlugLang[slug+":"+lang]; ok {
+			writeJSON(w, http.StatusOK, prod)
+			return
+		}
+	}
+	if prod, ok := snapshot.WebsiteProductsBySlugLang[slug]; ok {
+		writeJSON(w, http.StatusOK, prod)
+		return
+	}
+	for _, p := range snapshot.WebsiteProducts {
+		if p.Slug == slug {
+			writeJSON(w, http.StatusOK, p)
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusNotFound, map[string]any{"error": "not_found"})
+}
+
+func (a *App) handleWebsiteHomepage(w http.ResponseWriter, r *http.Request) {
+	lang := resolveLang(r)
+	snapshot := a.GetSnapshot()
+	data, ok := snapshot.WebsiteHomepageByLang[lang]
+	if !ok {
+		data = snapshot.WebsiteHomepageByLang["default"]
+	}
+	if data == nil {
+		data = map[string]any{}
+	}
+	writeJSON(w, http.StatusOK, data)
 }
 
 func (a *App) handleAgentInvoke(w http.ResponseWriter, r *http.Request) {
