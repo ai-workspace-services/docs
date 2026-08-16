@@ -54,6 +54,9 @@ func Load() (Config, error) {
 		cfg.KnowledgeRepoRef = "main"
 	}
 	if cfg.Port == "" {
+		cfg.Port = strings.TrimSpace(os.Getenv("PORT"))
+	}
+	if cfg.Port == "" {
 		cfg.Port = "8084"
 	}
 
