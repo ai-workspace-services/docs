@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"docs.svc.plus/internal/agent"
 	"docs.svc.plus/internal/config"
 	"docs.svc.plus/internal/content"
+	"docs.svc.plus/internal/dbprobe"
 	gitsync "docs.svc.plus/internal/git"
 )
 
@@ -102,6 +104,7 @@ func (a *App) Reload(pull bool) content.ReloadResult {
 func (a *App) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", a.handleHealth)
+	mux.HandleFunc("/readyz", a.handleReady)
 	mux.HandleFunc("/docs", a.handlePublicDocs)
 	mux.HandleFunc("/docs/", a.handlePublicDocs)
 
@@ -133,6 +136,29 @@ func (a *App) handleHealth(w http.ResponseWriter, _ *http.Request) {
 		"loadedAt":        loadedAt.Format(time.RFC3339),
 		"contentHash":     snapshot.ContentHash,
 		"sourceFileCount": len(snapshot.SourceHashes),
+	})
+}
+
+func (a *App) handleReady(w http.ResponseWriter, r *http.Request) {
+	if strings.TrimSpace(a.cfg.DatabaseURL) == "" {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"status":   "ready",
+			"database": "not_required",
+		})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := dbprobe.Ping(ctx, a.cfg.DatabaseURL); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"status":   "not_ready",
+			"database": "unavailable",
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":   "ready",
+		"database": "ok",
 	})
 }
 
