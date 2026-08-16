@@ -10,6 +10,14 @@ Go service for Cloud-Neutral documentation delivery and `docs-agent` actions.
 - `DOCS_SERVICE_PORT`: HTTP listen port
 - `INTERNAL_SERVICE_TOKEN`: shared service-to-service auth token
 - `DOCS_RELOAD_INTERVAL`: background reload interval, for example `5m`
+- `SUPABASE_CONNECT_URI`: optional shared Supabase connection URI; reserved for
+  future metadata persistence. The current Content service remains Git-backed
+  and does not open a database connection.
+- `SUPABASE_CONNECT_URL`: compatibility alias for `SUPABASE_CONNECT_URI`
+
+For the common VPS + Serverless deployment contract, runtime services should
+receive a Session pooler URI. `DATABASE_DIRECT_URL` is migration/backup-only
+and must not be injected into this service.
 
 ## Endpoints
 
