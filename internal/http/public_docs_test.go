@@ -42,6 +42,18 @@ func TestPublicDocsRoutes(t *testing.T) {
 
 	router := app.Routes()
 
+	t.Run("reports database is not required for git-backed content", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected content service to be ready without a database, got %d", rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), `"database":"not_required"`) {
+			t.Fatalf("expected database not_required status, got %q", rec.Body.String())
+		}
+	})
+
 	t.Run("renders docs home", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/docs", nil)
 		rec := httptest.NewRecorder()

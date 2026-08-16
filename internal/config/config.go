@@ -16,10 +16,11 @@ type Config struct {
 	KnowledgeRepoRef     string
 	Port                 string
 	InternalServiceToken string
-	// SupabaseConnectURI is reserved for the future metadata store. Content
-	// currently serves Git-backed knowledge and does not open a database
-	// connection, but accepting the shared runtime contract keeps deployment
-	// configuration consistent across the SaaS services.
+	// DatabaseURL is optional because Content currently serves Git-backed
+	// knowledge and does not require a database for normal requests. When it is
+	// configured, /readyz performs a one-shot probe against this single active
+	// primary; it is not a second runtime database or an automatic fallback.
+	DatabaseURL        string
 	SupabaseConnectURI string
 	ReloadInterval     time.Duration
 }
@@ -41,9 +42,10 @@ func Load() (Config, error) {
 		KnowledgeRepoRef:     strings.TrimSpace(os.Getenv("KNOWLEDGE_REPO_REF")),
 		Port:                 strings.TrimSpace(os.Getenv("DOCS_SERVICE_PORT")),
 		InternalServiceToken: strings.TrimSpace(os.Getenv("INTERNAL_SERVICE_TOKEN")),
-		SupabaseConnectURI:   supabaseConnectURIFromEnv(),
+		DatabaseURL:          databaseURLFromEnv(),
 		ReloadInterval:       5 * time.Minute,
 	}
+	cfg.SupabaseConnectURI = cfg.DatabaseURL
 
 	if cfg.KnowledgeRepoPath == "" {
 		return Config{}, fmt.Errorf("KNOWLEDGE_REPO_PATH is required")
@@ -73,4 +75,11 @@ func supabaseConnectURIFromEnv() string {
 		return value
 	}
 	return strings.TrimSpace(os.Getenv("SUPABASE_CONNECT_URL"))
+}
+
+func databaseURLFromEnv() string {
+	if value := supabaseConnectURIFromEnv(); value != "" {
+		return value
+	}
+	return strings.TrimSpace(os.Getenv("DATABASE_URL"))
 }
