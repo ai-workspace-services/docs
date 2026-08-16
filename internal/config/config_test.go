@@ -31,3 +31,31 @@ func TestLoadSupabaseConnectURLIsTransitionAlias(t *testing.T) {
 		t.Fatalf("SupabaseConnectURI = %q, want %q", got, want)
 	}
 }
+
+func TestCloudRunPortOverridesVPSDefault(t *testing.T) {
+	t.Setenv("KNOWLEDGE_REPO_PATH", t.TempDir())
+	t.Setenv("DOCS_SERVICE_PORT", "")
+	t.Setenv("PORT", "8080")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load port-aware config: %v", err)
+	}
+	if got, want := cfg.Port, "8080"; got != want {
+		t.Fatalf("Port = %q, want %q", got, want)
+	}
+}
+
+func TestVPSDefaultPortIsPreserved(t *testing.T) {
+	t.Setenv("KNOWLEDGE_REPO_PATH", t.TempDir())
+	t.Setenv("DOCS_SERVICE_PORT", "")
+	t.Setenv("PORT", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("load VPS config: %v", err)
+	}
+	if got, want := cfg.Port, "8084"; got != want {
+		t.Fatalf("Port = %q, want %q", got, want)
+	}
+}

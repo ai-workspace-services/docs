@@ -8,6 +8,8 @@ Go service for Cloud-Neutral documentation delivery and `docs-agent` actions.
 - `KNOWLEDGE_REPO_URL`: (Optional) Upstream git repository URL to watch and sync from (e.g., `https://github.com/haitaopanhq/knowledge.git`).
 - `KNOWLEDGE_REPO_REF`: Branch, tag, or commit to synchronize (default: `main`).
 - `DOCS_SERVICE_PORT`: HTTP listen port
+- `PORT`: Cloud Run-provided HTTP listen port; used when `DOCS_SERVICE_PORT` is
+  not set
 - `INTERNAL_SERVICE_TOKEN`: shared service-to-service auth token
 - `DOCS_RELOAD_INTERVAL`: background reload interval, for example `5m`
 - `SUPABASE_CONNECT_URI`: optional shared Supabase connection URI; reserved for
@@ -18,6 +20,10 @@ Go service for Cloud-Neutral documentation delivery and `docs-agent` actions.
 For the common VPS + Serverless deployment contract, runtime services should
 receive a Session pooler URI. `DATABASE_DIRECT_URL` is migration/backup-only
 and must not be injected into this service.
+
+The existing VPS Docker/Compose contract remains unchanged. Cloud Run-specific
+manifests and commands are under `deploy/gcp/cloud-run/`; see
+`deploy/README.md` for the required Secret Manager values and deployment flow.
 
 ## Endpoints
 

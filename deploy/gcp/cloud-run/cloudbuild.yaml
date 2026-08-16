@@ -1,0 +1,13 @@
+steps:
+- name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - --file
+  - Dockerfile.cloudrun
+  - --tag
+  - ${_CLOUD_RUN_IMAGE}
+  - .
+images:
+- ${_CLOUD_RUN_IMAGE}
+substitutions:
+  _CLOUD_RUN_IMAGE: image-not-set
