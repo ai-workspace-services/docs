@@ -16,7 +16,12 @@ type Config struct {
 	KnowledgeRepoRef     string
 	Port                 string
 	InternalServiceToken string
-	ReloadInterval       time.Duration
+	// SupabaseConnectURI is reserved for the future metadata store. Content
+	// currently serves Git-backed knowledge and does not open a database
+	// connection, but accepting the shared runtime contract keeps deployment
+	// configuration consistent across the SaaS services.
+	SupabaseConnectURI string
+	ReloadInterval     time.Duration
 }
 
 func Load() (Config, error) {
@@ -36,6 +41,7 @@ func Load() (Config, error) {
 		KnowledgeRepoRef:     strings.TrimSpace(os.Getenv("KNOWLEDGE_REPO_REF")),
 		Port:                 strings.TrimSpace(os.Getenv("DOCS_SERVICE_PORT")),
 		InternalServiceToken: strings.TrimSpace(os.Getenv("INTERNAL_SERVICE_TOKEN")),
+		SupabaseConnectURI:   supabaseConnectURIFromEnv(),
 		ReloadInterval:       5 * time.Minute,
 	}
 
@@ -60,4 +66,11 @@ func Load() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func supabaseConnectURIFromEnv() string {
+	if value := strings.TrimSpace(os.Getenv("SUPABASE_CONNECT_URI")); value != "" {
+		return value
+	}
+	return strings.TrimSpace(os.Getenv("SUPABASE_CONNECT_URL"))
 }
