@@ -122,7 +122,10 @@ func (a *App) Routes() http.Handler {
 	api.HandleFunc("/api/v1/admin/reload", a.handleReload)
 	api.HandleFunc("/api/v1/agent/invoke", a.handleAgentInvoke)
 
-	mux.Handle("/api/", RequireServiceToken(a.cfg.InternalServiceToken, api))
+	// Read-only content endpoints become revalidatable; the writer endpoints
+	// (`admin/reload`, `agent/invoke`) are POST-only and pass straight through.
+	cached := WithContentCache(func() string { return a.GetSnapshot().ContentHash }, a.cfg.ReloadInterval, api)
+	mux.Handle("/api/", RequireServiceToken(a.cfg.InternalServiceToken, cached))
 	return mux
 }
 
