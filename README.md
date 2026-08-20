@@ -43,6 +43,26 @@ manifests and commands are under `deploy/gcp/cloud-run/`; see
 
 All `/api/v1/*` endpoints require `X-Service-Token`.
 
+### Cache headers
+
+Every `/api/v1` read is derived from the in-memory snapshot, so `GET` and `HEAD`
+responses carry:
+
+- `ETag` — the snapshot's content hash combined with the request target and the
+  resolved language. An unchanged hash means an unchanged body, so a repeat read
+  with `If-None-Match` answers `304` with no body.
+- `Cache-Control: public, max-age=0, s-maxage=<DOCS_RELOAD_INTERVAL>,
+  stale-while-revalidate=<2x>` — a response cannot go stale faster than the
+  snapshot behind it is rebuilt, so shared caches may hold it for that long.
+- `X-Content-Hash` — the snapshot hash, for correlating a cached response with a
+  content release.
+- `Vary: Accept-Language, X-Language` — language falls back to these headers when
+  `?lang=` is absent.
+
+`POST` endpoints (`admin/reload`, `agent/invoke`) are never annotated as
+cacheable. The portal consumes these headers through its Next data cache; see
+`portal/docs/architecture/content-caching.md`.
+
 ## Documentation experience
 
 The service keeps each document available in several complementary forms:
